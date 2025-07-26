@@ -13,15 +13,22 @@ import (
 
 	config "github.com/priyanka-16/attendance-app-backEnd/internal/config"
 	"github.com/priyanka-16/attendance-app-backEnd/internal/http/handlers/student"
+	"github.com/priyanka-16/attendance-app-backEnd/internal/storage/sqlite"
 )
 
 func main() {
 	//load config
 	cfg := config.MustLoad()
 	//database setup
+	storage, err := sqlite.New(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	slog.Info("storage initialized", slog.String("env", cfg.Env))
 	//setup router
 	router := http.NewServeMux()
-	router.HandleFunc("POST /api/students", student.New())
+	router.HandleFunc("POST /api/students", student.New(storage))
+	router.HandleFunc("GET /api/students/{id}", student.GetById(storage))
 	//setup server
 
 	server := http.Server{
