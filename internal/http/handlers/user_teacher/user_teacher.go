@@ -1,4 +1,4 @@
-package attendanceRecord
+package user_teacher
 
 import (
 	"encoding/json"
@@ -17,11 +17,10 @@ import (
 
 func New(storage storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var teacher types.UserTeacher
 
-		var attendanceRecord types.AttendanceRecord
-
-		err := json.NewDecoder(r.Body).Decode(&attendanceRecord)
-		if errors.Is(err, io.EOF) { // error when no input is available
+		err := json.NewDecoder(r.Body).Decode(&teacher)
+		if errors.Is(err, io.EOF) {
 			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(fmt.Errorf("empty body")))
 			return
 		}
@@ -31,22 +30,19 @@ func New(storage storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		//request validation
-		if err = validator.New().Struct(attendanceRecord); err != nil {
-			validateErrs := err.(validator.ValidationErrors) //type cast required as simple errors cant be sent as argument to ValidationError
+		if err = validator.New().Struct(teacher); err != nil {
+			validateErrs := err.(validator.ValidationErrors)
 			response.WriteJson(w, http.StatusBadRequest, response.ValidationError(validateErrs))
 			return
 		}
 
-		lastId, err := storage.CreateAttendanceRecord(
-			attendanceRecord,
-		)
-		slog.Info("attendance recorded successfully", slog.String("userId", fmt.Sprint(attendanceRecord.StudentID)))
+		lastId, err := storage.CreateUserTeacher(teacher)
 		if err != nil {
 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
 			return
 		}
 
+		slog.Info("user teacher created successfully", slog.String("userTeacherId", fmt.Sprint(lastId)))
 		response.WriteJson(w, http.StatusCreated, map[string]int64{"id": lastId})
 	}
 }
@@ -54,7 +50,7 @@ func New(storage storage.Storage) http.HandlerFunc {
 func GetById(storage storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		slog.Info("getting a attendanceRecord", slog.String("id", id))
+		slog.Info("getting user teacher", slog.String("id", id))
 
 		intId, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
@@ -62,24 +58,24 @@ func GetById(storage storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		attendanceRecord, err := storage.GetAttendanceRecordByID(intId)
+		teacher, err := storage.GetUserTeacherById(intId)
 		if err != nil {
 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
 			return
 		}
 
-		response.WriteJson(w, http.StatusOK, attendanceRecord)
+		response.WriteJson(w, http.StatusOK, teacher)
 	}
 }
 
-func GetAttendanceRecordsList(storage storage.Storage) http.HandlerFunc {
+func GetUserTeachersList(storage storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		attendanceRecords, err := storage.GetAttendanceRecordsList()
+		teachers, err := storage.GetUserTeachersList()
 		if err != nil {
 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
 			return
 		}
 
-		response.WriteJson(w, http.StatusOK, attendanceRecords)
+		response.WriteJson(w, http.StatusOK, teachers)
 	}
 }

@@ -1,4 +1,4 @@
-package school
+package school_grade_section
 
 import (
 	"encoding/json"
@@ -17,11 +17,10 @@ import (
 
 func New(storage storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var section types.SchoolGradeSection
 
-		var school types.School
-
-		err := json.NewDecoder(r.Body).Decode(&school)
-		if errors.Is(err, io.EOF) { // error when no input is available
+		err := json.NewDecoder(r.Body).Decode(&section)
+		if errors.Is(err, io.EOF) {
 			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(fmt.Errorf("empty body")))
 			return
 		}
@@ -31,22 +30,19 @@ func New(storage storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		//request validation
-		if err = validator.New().Struct(school); err != nil {
-			validateErrs := err.(validator.ValidationErrors) //type cast required as simple errors cant be sent as argument to ValidationError
+		if err = validator.New().Struct(section); err != nil {
+			validateErrs := err.(validator.ValidationErrors)
 			response.WriteJson(w, http.StatusBadRequest, response.ValidationError(validateErrs))
 			return
 		}
 
-		lastId, err := storage.CreateSchool(
-			school,
-		)
-		slog.Info("school created successfully", slog.String("schoolId", fmt.Sprint(lastId)))
+		lastId, err := storage.CreateSchoolGradeSection(section)
 		if err != nil {
 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
 			return
 		}
 
+		slog.Info("school grade section created successfully", slog.String("schoolGradeSectionId", fmt.Sprint(lastId)))
 		response.WriteJson(w, http.StatusCreated, map[string]int64{"id": lastId})
 	}
 }
@@ -54,7 +50,7 @@ func New(storage storage.Storage) http.HandlerFunc {
 func GetById(storage storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		slog.Info("getting a school", slog.String("id", id))
+		slog.Info("getting school grade section", slog.String("id", id))
 
 		intId, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
@@ -62,24 +58,24 @@ func GetById(storage storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		school, err := storage.GetSchoolById(intId)
+		section, err := storage.GetSchoolGradeSectionById(intId)
 		if err != nil {
 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
 			return
 		}
 
-		response.WriteJson(w, http.StatusOK, school)
+		response.WriteJson(w, http.StatusOK, section)
 	}
 }
 
-func GetSchoolsList(storage storage.Storage) http.HandlerFunc {
+func GetSchoolGradeSectionsList(storage storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		schools, err := storage.GetSchoolsList()
+		sections, err := storage.GetSchoolGradeSectionsList()
 		if err != nil {
 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
 			return
 		}
 
-		response.WriteJson(w, http.StatusOK, schools)
+		response.WriteJson(w, http.StatusOK, sections)
 	}
 }
