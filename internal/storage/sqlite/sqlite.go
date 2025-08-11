@@ -19,6 +19,11 @@ func New(cfg *config.Config) (*Sqlite, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Enable foreign keys enforcement
+	_, err = db.Exec(`PRAGMA foreign_keys = ON;`)
+	if err != nil {
+		return nil, err
+	}
 
 	// USERS
 	_, err = db.Exec(`
@@ -124,7 +129,8 @@ func New(cfg *config.Config) (*Sqlite, error) {
 	classTeacherID INTEGER,
 	createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
 	updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (gradeID) REFERENCES school_grade (id) ON DELETE CASCADE
+	FOREIGN KEY (gradeID) REFERENCES school_grade (id) ON DELETE CASCADE,
+	FOREIGN KEY (classTeacherID) REFERENCES user_teacher (id) ON DELETE SET NULL
 	)`)
 	if err != nil {
 		return nil, err
@@ -135,11 +141,13 @@ func New(cfg *config.Config) (*Sqlite, error) {
 	CREATE TABLE IF NOT EXISTS attendance (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		studentID INTEGER NOT NULL,
-		date TEXT NOT NULL,
+		date DATETIME NOT NULL,
 		status TEXT NOT NULL,
 		takenBy INTEGER,
-		createdAt TEXT NOT NULL,
-		updatedAt TEXT NOT NULL
+		createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (studentID) REFERENCES user_student (id) ON DELETE CASCADE,
+    	FOREIGN KEY (takenBy) REFERENCES user_teacher (id) ON DELETE SET NULL
 	)`)
 	if err != nil {
 		return nil, err
