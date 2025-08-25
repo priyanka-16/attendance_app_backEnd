@@ -1,37 +1,45 @@
 package storage
 
-import "github.com/priyanka-16/attendance-app-backEnd/internal/types"
+import "github.com/priyanka-16/attendance-app-backEnd/internal/models"
 
 type Storage interface {
-	CreateUser(user types.User) (int64, error)
-	GetUserById(id int64) (types.User, error)
-	GetUsersList() ([]types.User, error)
+	// ---------------- USER ----------------
+	CreateUser(user *models.User) (uint, error)
+	GetUserById(id uint) (*models.User, error)
+	GetUsersList() ([]models.User, error)
 
-	CreateUserOTP(otp types.UserOTP) (int64, error)
-	GetUserOTPById(id int64) (types.UserOTP, error)
-	GetUserOTPList() ([]types.UserOTP, error)
+	// ---------------- USER OTP ----------------
+	CreateUserOTP(otp *models.UserOTP) (uint, error)
+	GetUserOTPById(id uint) (*models.UserOTP, error)
+	GetUserOTPList() ([]models.UserOTP, error)
 
-	CreateUserStudent(s types.UserStudent) (int64, error)
-	GetUserStudentById(id int64) (types.UserStudent, error)
-	GetUserStudentsList() ([]types.UserStudent, error)
+	// ---------------- USER STUDENT ----------------
+	CreateUserStudent(s *models.UserStudent) (uint, error)
+	GetUserStudentById(id uint) (*models.UserStudent, error)
+	GetUserStudentsList() ([]models.UserStudent, error)
 
-	CreateUserTeacher(t types.UserTeacher) (int64, error)
-	GetUserTeacherById(id int64) (types.UserTeacher, error)
-	GetUserTeachersList() ([]types.UserTeacher, error)
+	// ---------------- USER TEACHER ----------------
+	CreateUserTeacher(t *models.UserTeacher) (uint, error)
+	GetUserTeacherById(id uint) (*models.UserTeacher, error)
+	GetUserTeachersList() ([]models.UserTeacher, error)
 
-	CreateSchool(sc types.School) (int64, error)
-	GetSchoolById(id int64) (types.School, error)
-	GetSchoolsList() ([]types.School, error)
+	// ---------------- SCHOOL ----------------
+	CreateSchool(sc *models.School) (uint, error)
+	GetSchoolById(id uint) (*models.School, error)
+	GetSchoolsList() ([]models.School, error)
 
-	CreateSchoolGrade(g types.SchoolGrade) (int64, error)
-	GetSchoolGradeById(id int64) (types.SchoolGrade, error)
-	GetSchoolGradesList() ([]types.SchoolGrade, error)
+	// ---------------- SCHOOL GRADE ----------------
+	CreateSchoolGrade(g *models.SchoolGrade) (uint, error)
+	GetSchoolGradeById(id uint) (*models.SchoolGrade, error)
+	GetSchoolGradesList() ([]models.SchoolGrade, error)
 
-	CreateSchoolGradeSection(s types.SchoolGradeSection) (int64, error)
-	GetSchoolGradeSectionById(id int64) (types.SchoolGradeSection, error)
-	GetSchoolGradeSectionsList() ([]types.SchoolGradeSection, error)
+	// ---------------- SCHOOL GRADE SECTION ----------------
+	CreateSchoolGradeSection(s *models.SchoolGradeSection) (uint, error)
+	GetSchoolGradeSectionById(id uint) (*models.SchoolGradeSection, error)
+	GetSchoolGradeSectionsList() ([]models.SchoolGradeSection, error)
 
-	CreateAttendance(a types.Attendance) (int64, error)
-	GetAttendanceById(id int64) (types.Attendance, error)
-	GetAttendancesList() ([]types.Attendance, error)
+	// ---------------- ATTENDANCE ----------------
+	CreateAttendance(a *models.Attendance) (uint, error)
+	GetAttendanceById(id uint) (*models.Attendance, error)
+	GetAttendancesList() ([]models.Attendance, error)
 }

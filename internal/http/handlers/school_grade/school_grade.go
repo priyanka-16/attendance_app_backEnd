@@ -10,14 +10,14 @@ import (
 	"strconv"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/priyanka-16/attendance-app-backEnd/internal/models"
 	"github.com/priyanka-16/attendance-app-backEnd/internal/storage"
-	"github.com/priyanka-16/attendance-app-backEnd/internal/types"
 	"github.com/priyanka-16/attendance-app-backEnd/internal/utils/response"
 )
 
 func New(storage storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var grade types.SchoolGrade
+		var grade models.SchoolGrade
 
 		err := json.NewDecoder(r.Body).Decode(&grade)
 		if errors.Is(err, io.EOF) {
@@ -36,14 +36,14 @@ func New(storage storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		lastId, err := storage.CreateSchoolGrade(grade)
+		lastId, err := storage.CreateSchoolGrade(&grade)
 		if err != nil {
 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
 			return
 		}
 
 		slog.Info("school grade created successfully", slog.String("schoolGradeId", fmt.Sprint(lastId)))
-		response.WriteJson(w, http.StatusCreated, map[string]int64{"id": lastId})
+		response.WriteJson(w, http.StatusCreated, map[string]uint{"id": lastId})
 	}
 }
 
@@ -52,13 +52,13 @@ func GetById(storage storage.Storage) http.HandlerFunc {
 		id := r.PathValue("id")
 		slog.Info("getting school grade", slog.String("id", id))
 
-		intId, err := strconv.ParseInt(id, 10, 64)
+		intId, err := strconv.ParseUint(id, 10, 64)
 		if err != nil {
 			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
 			return
 		}
 
-		grade, err := storage.GetSchoolGradeById(intId)
+		grade, err := storage.GetSchoolGradeById(uint(intId))
 		if err != nil {
 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
 			return

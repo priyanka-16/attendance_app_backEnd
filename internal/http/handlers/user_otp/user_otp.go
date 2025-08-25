@@ -10,14 +10,14 @@ import (
 	"strconv"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/priyanka-16/attendance-app-backEnd/internal/models"
 	"github.com/priyanka-16/attendance-app-backEnd/internal/storage"
-	"github.com/priyanka-16/attendance-app-backEnd/internal/types"
 	"github.com/priyanka-16/attendance-app-backEnd/internal/utils/response"
 )
 
 func New(storage storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var otp types.UserOTP
+		var otp models.UserOTP
 
 		err := json.NewDecoder(r.Body).Decode(&otp)
 		if errors.Is(err, io.EOF) {
@@ -36,14 +36,14 @@ func New(storage storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		lastId, err := storage.CreateUserOTP(otp)
+		lastId, err := storage.CreateUserOTP(&otp)
 		if err != nil {
 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
 			return
 		}
 
 		slog.Info("user otp created successfully", slog.String("userOtpId", fmt.Sprint(lastId)))
-		response.WriteJson(w, http.StatusCreated, map[string]int64{"id": lastId})
+		response.WriteJson(w, http.StatusCreated, map[string]uint{"id": lastId})
 	}
 }
 
@@ -52,13 +52,13 @@ func GetById(storage storage.Storage) http.HandlerFunc {
 		id := r.PathValue("id")
 		slog.Info("getting user otp", slog.String("id", id))
 
-		intId, err := strconv.ParseInt(id, 10, 64)
+		intId, err := strconv.ParseUint(id, 10, 64)
 		if err != nil {
 			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
 			return
 		}
 
-		otp, err := storage.GetUserOTPById(intId)
+		otp, err := storage.GetUserOTPById(uint(intId))
 		if err != nil {
 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
 			return

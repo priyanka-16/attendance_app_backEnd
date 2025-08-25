@@ -10,14 +10,14 @@ import (
 	"strconv"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/priyanka-16/attendance-app-backEnd/internal/models"
 	"github.com/priyanka-16/attendance-app-backEnd/internal/storage"
-	"github.com/priyanka-16/attendance-app-backEnd/internal/types"
 	"github.com/priyanka-16/attendance-app-backEnd/internal/utils/response"
 )
 
 func New(storage storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var teacher types.UserTeacher
+		var teacher models.UserTeacher
 
 		err := json.NewDecoder(r.Body).Decode(&teacher)
 		if errors.Is(err, io.EOF) {
@@ -36,14 +36,14 @@ func New(storage storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		lastId, err := storage.CreateUserTeacher(teacher)
+		lastId, err := storage.CreateUserTeacher(&teacher)
 		if err != nil {
 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
 			return
 		}
 
 		slog.Info("user teacher created successfully", slog.String("userTeacherId", fmt.Sprint(lastId)))
-		response.WriteJson(w, http.StatusCreated, map[string]int64{"id": lastId})
+		response.WriteJson(w, http.StatusCreated, map[string]uint{"id": lastId})
 	}
 }
 
@@ -52,13 +52,13 @@ func GetById(storage storage.Storage) http.HandlerFunc {
 		id := r.PathValue("id")
 		slog.Info("getting user teacher", slog.String("id", id))
 
-		intId, err := strconv.ParseInt(id, 10, 64)
+		intId, err := strconv.ParseUint(id, 10, 64)
 		if err != nil {
 			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
 			return
 		}
 
-		teacher, err := storage.GetUserTeacherById(intId)
+		teacher, err := storage.GetUserTeacherById(uint(intId))
 		if err != nil {
 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
 			return

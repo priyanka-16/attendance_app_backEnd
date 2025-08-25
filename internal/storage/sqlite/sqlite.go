@@ -1,601 +1,237 @@
 package sqlite
 
 import (
-	"database/sql"
-	"time"
-
-	_ "github.com/mattn/go-sqlite3"
+	"fmt"
 
 	"github.com/priyanka-16/attendance-app-backEnd/internal/config"
-	"github.com/priyanka-16/attendance-app-backEnd/internal/types"
+	"github.com/priyanka-16/attendance-app-backEnd/internal/models"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 type Sqlite struct {
-	Db *sql.DB
+	Db *gorm.DB
 }
 
 func New(cfg *config.Config) (*Sqlite, error) {
-	db, err := sql.Open("sqlite3", cfg.StoragePath)
+	db, err := gorm.Open(sqlite.Open(cfg.StoragePath), &gorm.Config{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect database: %w", err)
 	}
-	// Enable foreign keys enforcement
-	_, err = db.Exec(`PRAGMA foreign_keys = ON;`)
+	// AutoMigrate will create/update all tables & relationships
+	err = db.AutoMigrate(
+		&models.User{},
+		&models.UserOTP{},
+		&models.UserStudent{},
+		&models.UserTeacher{},
+		&models.School{},
+		&models.SchoolGrade{},
+		&models.SchoolGradeSection{},
+		&models.Attendance{},
+	)
 	if err != nil {
-		return nil, err
-	}
-
-	// USERS
-	_, err = db.Exec(`
-	CREATE TABLE IF NOT EXISTS user (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	mobile TEXT NOT NULL UNIQUE,
-	loginHash TEXT NOT NULL,
-	password TEXT NOT NULL,
-	isActive BOOLEAN DEFAULT 1,
-	createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
-	);`)
-	if err != nil {
-		return nil, err
-	}
-
-	// USER_OTPS
-	_, err = db.Exec(`
-	CREATE TABLE IF NOT EXISTS user_otp (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	mobile TEXT NOT NULL,
-	code TEXT NOT NULL,
-	isUsed BOOLEAN DEFAULT 0,
-	expiresAt DATETIME NOT NULL,
-	createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (mobile) REFERENCES user (mobile) ON DELETE CASCADE
-	)`)
-	if err != nil {
-		return nil, err
-	}
-
-	// USER_STUDENTS
-	_, err = db.Exec(`
-	CREATE TABLE IF NOT EXISTS user_student (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	userID INTEGER NOT NULL,
-	name TEXT NOT NULL,
-	isActive BOOLEAN DEFAULT 1,
-	createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (userID) REFERENCES user (id) ON DELETE CASCADE
-	)`)
-	if err != nil {
-		return nil, err
-	}
-
-	// USER_TEACHERS
-	_, err = db.Exec(`
-	CREATE TABLE IF NOT EXISTS user_teacher (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	userID INTEGER NOT NULL,
-	name TEXT NOT NULL,
-	schoolID INTEGER NOT NULL,
-	isActive BOOLEAN DEFAULT 1,
-	createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (userID) REFERENCES user (id) ON DELETE CASCADE,
-	FOREIGN KEY (schoolID) REFERENCES school (id) ON DELETE CASCADE
-	)`)
-	if err != nil {
-		return nil, err
-	}
-
-	// SCHOOLS
-	_, err = db.Exec(`
-	CREATE TABLE IF NOT EXISTS school (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	name TEXT NOT NULL,
-	address TEXT,
-	district TEXT NOT NULL,
-	phone TEXT,
-	email TEXT,
-	createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
-	)`)
-	if err != nil {
-		return nil, err
-	}
-
-	// SCHOOL_GRADES
-	_, err = db.Exec(`
-	CREATE TABLE IF NOT EXISTS school_grade (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	schoolID INTEGER NOT NULL,
-	name TEXT NOT NULL,
-	slug TEXT NOT NULL,
-	createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (schoolID) REFERENCES school (id) ON DELETE CASCADE
-	)`)
-	if err != nil {
-		return nil, err
-	}
-
-	// SCHOOL_GRADE_SECTIONS
-	_, err = db.Exec(`
-	CREATE TABLE IF NOT EXISTS school_grade_section (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	name TEXT NOT NULL,
-	fullName TEXT NOT NULL,
-	slug TEXT NOT NULL,
-	gradeID INTEGER NOT NULL,
-	classTeacherID INTEGER,
-	createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (gradeID) REFERENCES school_grade (id) ON DELETE CASCADE,
-	FOREIGN KEY (classTeacherID) REFERENCES user_teacher (id) ON DELETE SET NULL
-	)`)
-	if err != nil {
-		return nil, err
-	}
-
-	// ATTENDANCE
-	_, err = db.Exec(`
-	CREATE TABLE IF NOT EXISTS attendance (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		studentID INTEGER NOT NULL,
-		date DATETIME NOT NULL,
-		status TEXT NOT NULL,
-		takenBy INTEGER,
-		createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (studentID) REFERENCES user_student (id) ON DELETE CASCADE,
-    	FOREIGN KEY (takenBy) REFERENCES user_teacher (id) ON DELETE SET NULL
-	)`)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("migration failed: %w", err)
 	}
 
 	return &Sqlite{Db: db}, nil
 }
 
 // ---------------- USER ----------------
-func (s *Sqlite) CreateUser(u types.User) (int64, error) {
-	stmt, err := s.Db.Prepare(`INSERT INTO user (mobile, loginHash, password, isActive, createdAt, updatedAt) VALUES (?,?,?,?,?,?)`)
-	if err != nil {
+func (s *Sqlite) CreateUser(u *models.User) (uint, error) {
+	if err := s.Db.Create(u).Error; err != nil {
 		return 0, err
 	}
-	defer stmt.Close()
-	result, err := stmt.Exec(u.Mobile, u.LoginHash, u.Password, u.IsActive, u.CreatedAt.Format(time.RFC3339), u.UpdatedAt.Format(time.RFC3339))
-	if err != nil {
-		return 0, err
-	}
-	return result.LastInsertId()
+	return u.ID, nil
 }
 
-func (s *Sqlite) GetUserById(id int64) (types.User, error) {
-	var u types.User
-	stmt := `SELECT id, mobile, loginHash, password, isActive, createdAt, updatedAt FROM user WHERE id = ?`
-	row := s.Db.QueryRow(stmt, id)
-	var createdAt, updatedAt string
-	err := row.Scan(&u.ID, &u.Mobile, &u.LoginHash, &u.Password, &u.IsActive, &createdAt, &updatedAt)
-	if err != nil {
-		return u, err
-	}
-	u.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-	u.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-	return u, nil
-}
-
-func (s *Sqlite) GetUsersList() ([]types.User, error) {
-	rows, err := s.Db.Query("SELECT id, mobile, loginHash, password, isActive, createdAt, updatedAt FROM user")
-	if err != nil {
+func (s *Sqlite) GetUserById(id uint) (*models.User, error) {
+	var user models.User
+	if err := s.Db.First(&user, id).Error; err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	return &user, nil
+}
 
-	var users []types.User
-	for rows.Next() {
-		var u types.User
-		var createdAt, updatedAt string
-
-		err := rows.Scan(&u.ID, &u.Mobile, &u.LoginHash, &u.Password, &u.IsActive, &createdAt, &updatedAt)
-		if err != nil {
-			return nil, err
-		}
-
-		u.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-		u.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-
-		users = append(users, u)
+func (s *Sqlite) GetUsersList() ([]models.User, error) {
+	var users []models.User
+	if err := s.Db.Find(&users).Error; err != nil {
+		return nil, err
 	}
 	return users, nil
 }
 
 // ---------------- USER OTP ----------------
-func (s *Sqlite) CreateUserOTP(o types.UserOTP) (int64, error) {
-	stmt, err := s.Db.Prepare(`INSERT INTO user_otp (mobile, code, isUsed, expiresAt, createdAt) VALUES (?,?,?,?,?)`)
-	if err != nil {
+func (s *Sqlite) CreateUserOTP(otp *models.UserOTP) (uint, error) {
+	if err := s.Db.Create(otp).Error; err != nil {
 		return 0, err
 	}
-	defer stmt.Close()
-	result, err := stmt.Exec(o.Mobile, o.Code, o.IsUsed, o.ExpiresAt.Format(time.RFC3339), o.CreatedAt.Format(time.RFC3339))
-	if err != nil {
-		return 0, err
-	}
-	return result.LastInsertId()
+	return otp.ID, nil
 }
 
-func (s *Sqlite) GetUserOTPById(id int64) (types.UserOTP, error) {
-	var otp types.UserOTP
-	stmt := `SELECT id, mobile, code, isUsed, expiresAt, createdAt FROM user_otp WHERE id = ?`
-	row := s.Db.QueryRow(stmt, id)
-
-	var expiresAt, createdAt string
-	err := row.Scan(&otp.ID, &otp.Mobile, &otp.Code, &otp.IsUsed, &expiresAt, &createdAt)
-	if err != nil {
-		return otp, err
-	}
-
-	otp.ExpiresAt, _ = time.Parse(time.RFC3339, expiresAt)
-	otp.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-
-	return otp, nil
-}
-
-func (s *Sqlite) GetUserOTPList() ([]types.UserOTP, error) {
-	rows, err := s.Db.Query("SELECT id, mobile, code, isUsed, expiresAt, createdAt FROM user_otp")
-	if err != nil {
+func (s *Sqlite) GetUserOTPById(id uint) (*models.UserOTP, error) {
+	var otp models.UserOTP
+	if err := s.Db.First(&otp, id).Error; err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	return &otp, nil
+}
 
-	var otps []types.UserOTP
-	for rows.Next() {
-		var otp types.UserOTP
-		var expiresAt, createdAt string
-
-		err := rows.Scan(&otp.ID, &otp.Mobile, &otp.Code, &otp.IsUsed, &expiresAt, &createdAt)
-		if err != nil {
-			return nil, err
-		}
-
-		otp.ExpiresAt, _ = time.Parse(time.RFC3339, expiresAt)
-		otp.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-
-		otps = append(otps, otp)
+func (s *Sqlite) GetUserOTPList() ([]models.UserOTP, error) {
+	var otps []models.UserOTP
+	if err := s.Db.Find(&otps).Error; err != nil {
+		return nil, err
 	}
 	return otps, nil
 }
 
 // ---------------- USER STUDENT ----------------
-func (s *Sqlite) CreateUserStudent(us types.UserStudent) (int64, error) {
-	stmt, err := s.Db.Prepare(`INSERT INTO user_student (userID, name, isActive, createdAt, updatedAt) VALUES (?,?,?,?,?)`)
-	if err != nil {
+func (s *Sqlite) CreateUserStudent(userStudent *models.UserStudent) (uint, error) {
+	if err := s.Db.Create(userStudent).Error; err != nil {
 		return 0, err
 	}
-	defer stmt.Close()
-	result, err := stmt.Exec(us.UserID, us.Name, us.IsActive, us.CreatedAt.Format(time.RFC3339), us.UpdatedAt.Format(time.RFC3339))
-	if err != nil {
-		return 0, err
-	}
-	return result.LastInsertId()
+	return userStudent.ID, nil
 }
 
-func (s *Sqlite) GetUserStudentById(id int64) (types.UserStudent, error) {
-	var us types.UserStudent
-	stmt := `SELECT id, userID, name, isActive, createdAt, updatedAt FROM user_student WHERE id = ?`
-	row := s.Db.QueryRow(stmt, id)
-
-	var createdAt, updatedAt string
-	err := row.Scan(&us.ID, &us.UserID, &us.Name, &us.IsActive, &createdAt, &updatedAt)
-	if err != nil {
-		return us, err
-	}
-
-	us.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-	us.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-
-	return us, nil
-}
-
-func (s *Sqlite) GetUserStudentsList() ([]types.UserStudent, error) {
-	rows, err := s.Db.Query("SELECT id, userID, name, isActive, createdAt, updatedAt FROM user_student")
-	if err != nil {
+func (s *Sqlite) GetUserStudentById(id uint) (*models.UserStudent, error) {
+	var userStudent models.UserStudent
+	if err := s.Db.Preload("User").First(&userStudent, id).Error; err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	return &userStudent, nil
+}
 
-	var students []types.UserStudent
-	for rows.Next() {
-		var us types.UserStudent
-		var createdAt, updatedAt string
-
-		err := rows.Scan(&us.ID, &us.UserID, &us.Name, &us.IsActive, &createdAt, &updatedAt)
-		if err != nil {
-			return nil, err
-		}
-
-		us.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-		us.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-
-		students = append(students, us)
+func (s *Sqlite) GetUserStudentsList() ([]models.UserStudent, error) {
+	var userStudents []models.UserStudent
+	if err := s.Db.Preload("User").Find(&userStudents).Error; err != nil {
+		return nil, err
 	}
-	return students, nil
+	return userStudents, nil
 }
 
 // ---------------- USER TEACHER ----------------
-func (s *Sqlite) CreateUserTeacher(ut types.UserTeacher) (int64, error) {
-	stmt, err := s.Db.Prepare(`INSERT INTO user_teacher (userID, name, schoolID, isActive, createdAt, updatedAt) VALUES (?,?,?,?,?,?)`)
-	if err != nil {
+func (s *Sqlite) CreateUserTeacher(userTeacher *models.UserTeacher) (uint, error) {
+	if err := s.Db.Create(userTeacher).Error; err != nil {
 		return 0, err
 	}
-	defer stmt.Close()
-	result, err := stmt.Exec(ut.UserID, ut.Name, ut.SchoolID, ut.IsActive, ut.CreatedAt.Format(time.RFC3339), ut.UpdatedAt.Format(time.RFC3339))
-	if err != nil {
-		return 0, err
-	}
-	return result.LastInsertId()
+	return userTeacher.ID, nil
 }
 
-func (s *Sqlite) GetUserTeacherById(id int64) (types.UserTeacher, error) {
-	var ut types.UserTeacher
-	stmt := `SELECT id, userID, name, schoolID, isActive, createdAt, updatedAt FROM user_teacher WHERE id = ?`
-	row := s.Db.QueryRow(stmt, id)
-
-	var createdAt, updatedAt string
-	err := row.Scan(&ut.ID, &ut.UserID, &ut.Name, &ut.SchoolID, &ut.IsActive, &createdAt, &updatedAt)
-	if err != nil {
-		return ut, err
-	}
-
-	ut.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-	ut.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-
-	return ut, nil
-}
-
-func (s *Sqlite) GetUserTeachersList() ([]types.UserTeacher, error) {
-	rows, err := s.Db.Query("SELECT id, userID, name, schoolID, isActive, createdAt, updatedAt FROM user_teacher")
-	if err != nil {
+func (s *Sqlite) GetUserTeacherById(id uint) (*models.UserTeacher, error) {
+	var userTeacher models.UserTeacher
+	if err := s.Db.Preload("User").Preload("School").First(&userTeacher, id).Error; err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	return &userTeacher, nil
+}
 
-	var teachers []types.UserTeacher
-	for rows.Next() {
-		var ut types.UserTeacher
-		var createdAt, updatedAt string
-
-		err := rows.Scan(&ut.ID, &ut.UserID, &ut.Name, &ut.SchoolID, &ut.IsActive, &createdAt, &updatedAt)
-		if err != nil {
-			return nil, err
-		}
-
-		ut.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-		ut.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-
-		teachers = append(teachers, ut)
+func (s *Sqlite) GetUserTeachersList() ([]models.UserTeacher, error) {
+	var userTeachers []models.UserTeacher
+	if err := s.Db.Preload("User").Preload("School").Find(&userTeachers).Error; err != nil {
+		return nil, err
 	}
-	return teachers, nil
+	return userTeachers, nil
 }
 
 // ---------------- SCHOOL ----------------
-func (s *Sqlite) CreateSchool(sc types.School) (int64, error) {
-	stmt, err := s.Db.Prepare(`INSERT INTO school (name, address, district, phone, email, createdAt, updatedAt) VALUES (?,?,?,?,?,?,?)`)
-	if err != nil {
+func (s *Sqlite) CreateSchool(school *models.School) (uint, error) {
+	if err := s.Db.Create(school).Error; err != nil {
 		return 0, err
 	}
-	defer stmt.Close()
-	result, err := stmt.Exec(sc.Name, sc.Address, sc.District, sc.Phone, sc.Email, sc.CreatedAt.Format(time.RFC3339), sc.UpdatedAt.Format(time.RFC3339))
-	if err != nil {
-		return 0, err
-	}
-	return result.LastInsertId()
+	return school.ID, nil
 }
 
-func (s *Sqlite) GetSchoolById(id int64) (types.School, error) {
-	var sc types.School
-	stmt := `SELECT id, name, address, district, phone, email, createdAt, updatedAt FROM school WHERE id = ?`
-	row := s.Db.QueryRow(stmt, id)
-
-	var createdAt, updatedAt string
-	err := row.Scan(&sc.ID, &sc.Name, &sc.Address, &sc.District, &sc.Phone, &sc.Email, &createdAt, &updatedAt)
-	if err != nil {
-		return sc, err
-	}
-
-	sc.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-	sc.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-
-	return sc, nil
-}
-
-func (s *Sqlite) GetSchoolsList() ([]types.School, error) {
-	rows, err := s.Db.Query("SELECT id, name, address, district, phone, email, createdAt, updatedAt FROM school")
-	if err != nil {
+func (s *Sqlite) GetSchoolById(id uint) (*models.School, error) {
+	var school models.School
+	if err := s.Db.First(&school, id).Error; err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	return &school, nil
+}
 
-	var schools []types.School
-	for rows.Next() {
-		var sc types.School
-		var createdAt, updatedAt string
-
-		err := rows.Scan(&sc.ID, &sc.Name, &sc.Address, &sc.District, &sc.Phone, &sc.Email, &createdAt, &updatedAt)
-		if err != nil {
-			return nil, err
-		}
-
-		sc.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-		sc.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-
-		schools = append(schools, sc)
+func (s *Sqlite) GetSchoolsList() ([]models.School, error) {
+	var schools []models.School
+	if err := s.Db.Find(&schools).Error; err != nil {
+		return nil, err
 	}
 	return schools, nil
 }
 
 // ---------------- SCHOOL GRADE ----------------
-func (s *Sqlite) CreateSchoolGrade(g types.SchoolGrade) (int64, error) {
-	stmt, err := s.Db.Prepare(`INSERT INTO school_grade (schoolID, name, slug, createdAt, updatedAt) VALUES (?,?,?,?,?)`)
-	if err != nil {
+func (s *Sqlite) CreateSchoolGrade(schoolGrade *models.SchoolGrade) (uint, error) {
+	if err := s.Db.Create(schoolGrade).Error; err != nil {
 		return 0, err
 	}
-	defer stmt.Close()
-	result, err := stmt.Exec(g.SchoolID, g.Name, g.Slug, g.CreatedAt.Format(time.RFC3339), g.UpdatedAt.Format(time.RFC3339))
-	if err != nil {
-		return 0, err
-	}
-	return result.LastInsertId()
-}
-func (s *Sqlite) GetSchoolGradeById(id int64) (types.SchoolGrade, error) {
-	var g types.SchoolGrade
-	stmt := `SELECT id, schoolID, name, slug, createdAt, updatedAt FROM school_grade WHERE id = ?`
-	row := s.Db.QueryRow(stmt, id)
-
-	var createdAt, updatedAt string
-	err := row.Scan(&g.ID, &g.SchoolID, &g.Name, &g.Slug, &createdAt, &updatedAt)
-	if err != nil {
-		return g, err
-	}
-
-	g.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-	g.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-
-	return g, nil
+	return schoolGrade.ID, nil
 }
 
-func (s *Sqlite) GetSchoolGradesList() ([]types.SchoolGrade, error) {
-	rows, err := s.Db.Query("SELECT id, schoolID, name, slug, createdAt, updatedAt FROM school_grade")
-	if err != nil {
+func (s *Sqlite) GetSchoolGradeById(id uint) (*models.SchoolGrade, error) {
+	var schoolGrade models.SchoolGrade
+	if err := s.Db.Preload("School").First(&schoolGrade, id).Error; err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	return &schoolGrade, nil
+}
 
-	var grades []types.SchoolGrade
-	for rows.Next() {
-		var g types.SchoolGrade
-		var createdAt, updatedAt string
-
-		err := rows.Scan(&g.ID, &g.SchoolID, &g.Name, &g.Slug, &createdAt, &updatedAt)
-		if err != nil {
-			return nil, err
-		}
-
-		g.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-		g.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-
-		grades = append(grades, g)
+func (s *Sqlite) GetSchoolGradesList() ([]models.SchoolGrade, error) {
+	var schoolGrades []models.SchoolGrade
+	if err := s.Db.Preload("School").Find(&schoolGrades).Error; err != nil {
+		return nil, err
 	}
-	return grades, nil
+	return schoolGrades, nil
 }
 
 // ---------------- SCHOOL GRADE SECTION ----------------
-func (s *Sqlite) CreateSchoolGradeSection(sec types.SchoolGradeSection) (int64, error) {
-	stmt, err := s.Db.Prepare(`INSERT INTO school_grade_section (name, fullName, slug, gradeID, classTeacherID, createdAt, updatedAt) VALUES (?,?,?,?,?,?,?)`)
-	if err != nil {
+func (s *Sqlite) CreateSchoolGradeSection(schoolGradeSection *models.SchoolGradeSection) (uint, error) {
+	if err := s.Db.Create(schoolGradeSection).Error; err != nil {
 		return 0, err
 	}
-	defer stmt.Close()
-	result, err := stmt.Exec(sec.Name, sec.FullName, sec.Slug, sec.GradeID, sec.ClassTeacherID, sec.CreatedAt.Format(time.RFC3339), sec.UpdatedAt.Format(time.RFC3339))
-	if err != nil {
-		return 0, err
-	}
-	return result.LastInsertId()
-}
-func (s *Sqlite) GetSchoolGradeSectionById(id int64) (types.SchoolGradeSection, error) {
-	var sec types.SchoolGradeSection
-	stmt := `SELECT id, name, fullName, slug, gradeID, classTeacherID, createdAt, updatedAt FROM school_grade_section WHERE id = ?`
-	row := s.Db.QueryRow(stmt, id)
-
-	var createdAt, updatedAt string
-	err := row.Scan(&sec.ID, &sec.Name, &sec.FullName, &sec.Slug, &sec.GradeID, &sec.ClassTeacherID, &createdAt, &updatedAt)
-	if err != nil {
-		return sec, err
-	}
-
-	sec.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-	sec.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-
-	return sec, nil
+	return schoolGradeSection.ID, nil
 }
 
-func (s *Sqlite) GetSchoolGradeSectionsList() ([]types.SchoolGradeSection, error) {
-	rows, err := s.Db.Query("SELECT id, name, fullName, slug, gradeID, classTeacherID, createdAt, updatedAt FROM school_grade_section")
-	if err != nil {
+func (s *Sqlite) GetSchoolGradeSectionById(id uint) (*models.SchoolGradeSection, error) {
+	var schoolGradeSection models.SchoolGradeSection
+	if err := s.Db.Preload("Grade.School").
+		Preload("ClassTeacher.User").
+		Preload("ClassTeacher.School").First(&schoolGradeSection, id).Error; err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	return &schoolGradeSection, nil
+}
 
-	var sections []types.SchoolGradeSection
-	for rows.Next() {
-		var sec types.SchoolGradeSection
-		var createdAt, updatedAt string
-
-		err := rows.Scan(&sec.ID, &sec.Name, &sec.FullName, &sec.Slug, &sec.GradeID, &sec.ClassTeacherID, &createdAt, &updatedAt)
-		if err != nil {
-			return nil, err
-		}
-
-		sec.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-		sec.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-
-		sections = append(sections, sec)
+func (s *Sqlite) GetSchoolGradeSectionsList() ([]models.SchoolGradeSection, error) {
+	var schoolGradeSections []models.SchoolGradeSection
+	if err := s.Db.Preload("Grade.School").
+		Preload("ClassTeacher.User").
+		Preload("ClassTeacher.School").Find(&schoolGradeSections).Error; err != nil {
+		return nil, err
 	}
-	return sections, nil
+	return schoolGradeSections, nil
 }
 
 // ---------------- ATTENDANCE ----------------
-func (s *Sqlite) CreateAttendance(a types.Attendance) (int64, error) {
-	stmt, err := s.Db.Prepare(`INSERT INTO attendance (studentID, date, status, takenBy, createdAt, updatedAt) VALUES (?,?,?,?,?,?)`)
-	if err != nil {
+func (s *Sqlite) CreateAttendance(attendance *models.Attendance) (uint, error) {
+	if err := s.Db.Create(attendance).Error; err != nil {
 		return 0, err
 	}
-	defer stmt.Close()
-	result, err := stmt.Exec(a.StudentID, a.Date.Format(time.RFC3339), a.Status, a.TakenBy, a.CreatedAt.Format(time.RFC3339), a.UpdatedAt.Format(time.RFC3339))
-	if err != nil {
-		return 0, err
-	}
-	return result.LastInsertId()
-}
-func (s *Sqlite) GetAttendanceById(id int64) (types.Attendance, error) {
-	var a types.Attendance
-	stmt := `SELECT id, studentID, date, status, takenBy, createdAt, updatedAt FROM attendance WHERE id = ?`
-	row := s.Db.QueryRow(stmt, id)
-
-	var date, createdAt, updatedAt string
-	err := row.Scan(&a.ID, &a.StudentID, &date, &a.Status, &a.TakenBy, &createdAt, &updatedAt)
-	if err != nil {
-		return a, err
-	}
-
-	a.Date, _ = time.Parse(time.RFC3339, date)
-	a.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-	a.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-
-	return a, nil
+	return attendance.ID, nil
 }
 
-func (s *Sqlite) GetAttendancesList() ([]types.Attendance, error) {
-	rows, err := s.Db.Query("SELECT id, studentID, date, status, takenBy, createdAt, updatedAt FROM attendance")
-	if err != nil {
+func (s *Sqlite) GetAttendanceById(id uint) (*models.Attendance, error) {
+	var attendance models.Attendance
+	if err := s.Db.Preload("Student.User").
+		Preload("Teacher.User").
+		Preload("Teacher.School").First(&attendance, id).Error; err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	return &attendance, nil
+}
 
-	var attendances []types.Attendance
-	for rows.Next() {
-		var a types.Attendance
-		var date, createdAt, updatedAt string
-
-		err := rows.Scan(&a.ID, &a.StudentID, &date, &a.Status, &a.TakenBy, &createdAt, &updatedAt)
-		if err != nil {
-			return nil, err
-		}
-
-		a.Date, _ = time.Parse(time.RFC3339, date)
-		a.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-		a.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-
-		attendances = append(attendances, a)
+func (s *Sqlite) GetAttendancesList() ([]models.Attendance, error) {
+	var attendances []models.Attendance
+	if err := s.Db.Preload("Student.User").
+		Preload("Teacher.User").
+		Preload("Teacher.School").Find(&attendances).Error; err != nil {
+		return nil, err
 	}
 	return attendances, nil
 }
