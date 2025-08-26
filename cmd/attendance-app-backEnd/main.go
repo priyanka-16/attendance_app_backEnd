@@ -12,14 +12,7 @@ import (
 	"time"
 
 	config "github.com/priyanka-16/attendance-app-backEnd/internal/config"
-	"github.com/priyanka-16/attendance-app-backEnd/internal/http/handlers/attendance"
-	"github.com/priyanka-16/attendance-app-backEnd/internal/http/handlers/school"
-	"github.com/priyanka-16/attendance-app-backEnd/internal/http/handlers/school_grade"
-	"github.com/priyanka-16/attendance-app-backEnd/internal/http/handlers/school_grade_section"
-	"github.com/priyanka-16/attendance-app-backEnd/internal/http/handlers/user"
-	"github.com/priyanka-16/attendance-app-backEnd/internal/http/handlers/user_otp"
-	"github.com/priyanka-16/attendance-app-backEnd/internal/http/handlers/user_student"
-	"github.com/priyanka-16/attendance-app-backEnd/internal/http/handlers/user_teacher"
+	"github.com/priyanka-16/attendance-app-backEnd/internal/http/handlers/auth"
 	"github.com/priyanka-16/attendance-app-backEnd/internal/storage/sqlite"
 )
 
@@ -34,32 +27,21 @@ func main() {
 	slog.Info("storage initialized", slog.String("env", cfg.Env))
 	//setup router
 	router := http.NewServeMux()
-	router.HandleFunc("POST /api/users", user.New(storage))
-	router.HandleFunc("GET /api/users/{id}", user.GetById(storage))
-	router.HandleFunc("GET /api/users", user.GetUsersList(storage))
-	router.HandleFunc("POST /api/students", user_student.New(storage))
-	router.HandleFunc("GET /api/students/{id}", user_student.GetById(storage))
-	router.HandleFunc("GET /api/students", user_student.GetUserStudentsList(storage))
-	router.HandleFunc("POST /api/teachers", user_teacher.New(storage))
-	router.HandleFunc("GET /api/teachers/{id}", user_teacher.GetById(storage))
-	router.HandleFunc("GET /api/teachers", user_teacher.GetUserTeachersList(storage))
-	router.HandleFunc("POST /api/otps", user_otp.New(storage))
-	router.HandleFunc("GET /api/otps/{id}", user_otp.GetById(storage))
-	router.HandleFunc("GET /api/otps", user_otp.GetUserOTPList(storage))
-	router.HandleFunc("POST /api/attendance", attendance.New(storage))
-	router.HandleFunc("GET /api/attendance/{id}", attendance.GetById(storage))
-	router.HandleFunc("GET /api/attendance", attendance.GetAttendancesList(storage))
-	router.HandleFunc("POST /api/schools", school.New(storage))
-	router.HandleFunc("GET /api/schools/{id}", school.GetById(storage))
-	router.HandleFunc("GET /api/schools", school.GetSchoolsList(storage))
-	router.HandleFunc("POST /api/grades", school_grade.New(storage))
-	router.HandleFunc("GET /api/grades/{id}", school_grade.GetById(storage))
-	router.HandleFunc("GET /api/grades", school_grade.GetSchoolGradesList(storage))
-	router.HandleFunc("POST /api/sections", school_grade_section.New(storage))
-	router.HandleFunc("GET /api/sections/{id}", school_grade_section.GetById(storage))
-	router.HandleFunc("GET /api/sections", school_grade_section.GetSchoolGradeSectionsList(storage))
+	// Auth
+	router.HandleFunc("POST /api/auth/request-otp", auth.RequestOTP(storage))
+	router.HandleFunc("POST /api/auth/login-otp", auth.LoginWithOTP(storage))
+	// // Profile
+	// router.HandleFunc("GET /api/profile", profile.Get(storage))    // requires auth middleware
+	// router.HandleFunc("PUT /api/profile", profile.Update(storage)) // requires auth middleware
+	// // Home/Dashboard
+	// router.HandleFunc("GET /api/home", home.Get(storage)) // requires auth middleware
+	// // Attendance
+	// router.HandleFunc("GET /api/attendance/calendar", attendance.Calendar(storage))
+	// router.HandleFunc("GET /api/attendance/class/{sectionId}/date/{date}", attendance.GetClassAttendance(storage))
+	// router.HandleFunc("POST /api/attendance/class/{sectionId}/date/{date}", attendance.SubmitClassAttendance(storage))
+	// router.HandleFunc("GET /api/attendance/me", attendance.GetMyAttendance(storage))
+	// router.HandleFunc("GET /api/attendance/summary/class/{sectionId}", attendance.GetClassSummary(storage))
 	//setup server
-
 	server := http.Server{
 		Addr:    cfg.Addr,
 		Handler: router,

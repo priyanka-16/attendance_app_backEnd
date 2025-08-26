@@ -7,9 +7,9 @@ import (
 type User struct {
 	gorm.Model
 	Mobile    string `gorm:"uniqueIndex;not null"`
-	LoginHash string `gorm:"not null"`
-	Password  string `gorm:"not null"`
-	IsActive  bool   `gorm:"default:true"`
+	LoginHash string
+	Password  string
+	IsActive  bool `gorm:"default:true"`
 }
 
 type UserOTP struct {
