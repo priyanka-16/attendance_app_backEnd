@@ -5,7 +5,7 @@ import "github.com/priyanka-16/attendance-app-backEnd/internal/models"
 type Storage interface {
 	// ---------------- USER ----------------
 	CreateUser(user *models.User) (uint, error)
-	// GetUserById(id uint) (*models.User, error)
+	GetUserById(id uint) (*models.User, error)
 	// GetUsersList() ([]models.User, error)
 
 	// // ---------------- USER OTP ----------------
@@ -16,13 +16,15 @@ type Storage interface {
 	// GetUserOTPList() ([]models.UserOTP, error)
 
 	// // ---------------- USER STUDENT ----------------
-	// CreateUserStudent(s *models.UserStudent) (uint, error)
-	// GetUserStudentById(id uint) (*models.UserStudent, error)
+	CreateUserStudent(s *models.UserStudent) (uint, error)
+	GetUserStudentById(id uint) (*models.UserStudent, error)
+	UpdateUserStudent(s models.UserStudent) error
 	// GetUserStudentsList() ([]models.UserStudent, error)
 
 	// // ---------------- USER TEACHER ----------------
-	// CreateUserTeacher(t *models.UserTeacher) (uint, error)
-	// GetUserTeacherById(id uint) (*models.UserTeacher, error)
+	CreateUserTeacher(t *models.UserTeacher) (uint, error)
+	GetUserTeacherById(id uint) (*models.UserTeacher, error)
+	UpdateUserTeacher(s models.UserTeacher) error
 	// GetUserTeachersList() ([]models.UserTeacher, error)
 
 	// // ---------------- SCHOOL ----------------

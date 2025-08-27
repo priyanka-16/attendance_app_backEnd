@@ -55,9 +55,9 @@ func LoginWithOTP(store storage.Storage) http.HandlerFunc {
 
 		// Generate JWT
 		claims := jwt.MapClaims{
-			"userId": user.ID,
-			"mobile": user.Mobile,
-			"exp":    time.Now().Add(24 * time.Hour).Unix(),
+			"user_id": user.ID,
+			"mobile":  user.Mobile,
+			"exp":     time.Now().Add(24 * time.Hour).Unix(),
 		}
 
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

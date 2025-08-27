@@ -22,8 +22,11 @@ type UserOTP struct {
 
 type UserStudent struct {
 	gorm.Model
-	UserID   uint   `gorm:"not null;index"`
-	Name     string `gorm:"not null"`
+	UserID   uint   `gorm:"not null;index" json:"userID"`
+	Name     string `gorm:"not null" json:"name"`
+	Photo    string ` json:"photo"`
+	State    string ` json:"state"`
+	District string ` json:"district"`
 	IsActive bool   `gorm:"default:true"`
 
 	User User `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"`
@@ -31,9 +34,9 @@ type UserStudent struct {
 
 type UserTeacher struct {
 	gorm.Model
-	UserID   uint   `gorm:"not null;index"`
-	Name     string `gorm:"not null"`
-	SchoolID uint   `gorm:"not null;index"`
+	UserID   uint   `gorm:"not null;index" json:"userID"`
+	Name     string `gorm:"not null" json:"name"`
+	SchoolID uint   `gorm:"not null;index" json:"schoolID"`
 	IsActive bool   `gorm:"default:true"`
 
 	User   User   `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"`

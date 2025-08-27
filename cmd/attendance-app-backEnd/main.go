@@ -13,6 +13,7 @@ import (
 
 	config "github.com/priyanka-16/attendance-app-backEnd/internal/config"
 	"github.com/priyanka-16/attendance-app-backEnd/internal/http/handlers/auth"
+	"github.com/priyanka-16/attendance-app-backEnd/internal/http/handlers/user"
 	"github.com/priyanka-16/attendance-app-backEnd/internal/storage/sqlite"
 )
 
@@ -30,9 +31,12 @@ func main() {
 	// Auth
 	router.HandleFunc("POST /api/auth/request-otp", auth.RequestOTP(storage))
 	router.HandleFunc("POST /api/auth/login-otp", auth.LoginWithOTP(storage))
+	router.HandleFunc("POST /api/user", user.NewUser(storage))
+	router.HandleFunc("POST /api/userStudent", user.NewUserStudent(storage))
+	router.HandleFunc("POST /api/userTeacher", user.NewUserTeacher(storage))
 	// // Profile
-	// router.HandleFunc("GET /api/profile", profile.Get(storage))    // requires auth middleware
-	// router.HandleFunc("PUT /api/profile", profile.Update(storage)) // requires auth middleware
+	router.HandleFunc("GET /api/profile", user.GetProfile(storage))    // requires auth middleware
+	router.HandleFunc("PUT /api/profile", user.UpdateProfile(storage)) // requires auth middleware
 	// // Home/Dashboard
 	// router.HandleFunc("GET /api/home", home.Get(storage)) // requires auth middleware
 	// // Attendance

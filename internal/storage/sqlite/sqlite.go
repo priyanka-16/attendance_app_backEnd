@@ -52,6 +52,14 @@ func (s *Sqlite) GetUserByMobile(mobile string) (*models.User, error) {
 	return &user, nil
 }
 
+func (s *Sqlite) GetUserById(id uint) (*models.User, error) {
+	var user models.User
+	if err := s.Db.First(&user, id).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 // func (s *Sqlite) GetUsersList() ([]models.User, error) {
 // 	var users []models.User
 // 	if err := s.Db.Find(&users).Error; err != nil {
@@ -85,20 +93,23 @@ func (s *Sqlite) GetUserOTPByMobile(mobile string) (*models.UserOTP, error) {
 // }
 
 // // ---------------- USER STUDENT ----------------
-// func (s *Sqlite) CreateUserStudent(userStudent *models.UserStudent) (uint, error) {
-// 	if err := s.Db.Create(userStudent).Error; err != nil {
-// 		return 0, err
-// 	}
-// 	return userStudent.ID, nil
-// }
+func (s *Sqlite) CreateUserStudent(userStudent *models.UserStudent) (uint, error) {
+	if err := s.Db.Create(userStudent).Error; err != nil {
+		return 0, err
+	}
+	return userStudent.ID, nil
+}
 
-// func (s *Sqlite) GetUserStudentById(id uint) (*models.UserStudent, error) {
-// 	var userStudent models.UserStudent
-// 	if err := s.Db.Preload("User").First(&userStudent, id).Error; err != nil {
-// 		return nil, err
-// 	}
-// 	return &userStudent, nil
-// }
+func (s *Sqlite) GetUserStudentById(id uint) (*models.UserStudent, error) {
+	var userStudent models.UserStudent
+	if err := s.Db.Preload("User").First(&userStudent, id).Error; err != nil {
+		return nil, err
+	}
+	return &userStudent, nil
+}
+func (s *Sqlite) UpdateUserStudent(stu models.UserStudent) error {
+	return s.Db.Model(&models.UserStudent{}).Where("user_id = ?", stu.UserID).Updates(stu).Error
+}
 
 // func (s *Sqlite) GetUserStudentsList() ([]models.UserStudent, error) {
 // 	var userStudents []models.UserStudent
@@ -109,20 +120,24 @@ func (s *Sqlite) GetUserOTPByMobile(mobile string) (*models.UserOTP, error) {
 // }
 
 // // ---------------- USER TEACHER ----------------
-// func (s *Sqlite) CreateUserTeacher(userTeacher *models.UserTeacher) (uint, error) {
-// 	if err := s.Db.Create(userTeacher).Error; err != nil {
-// 		return 0, err
-// 	}
-// 	return userTeacher.ID, nil
-// }
+func (s *Sqlite) CreateUserTeacher(userTeacher *models.UserTeacher) (uint, error) {
+	if err := s.Db.Create(userTeacher).Error; err != nil {
+		return 0, err
+	}
+	return userTeacher.ID, nil
+}
 
-// func (s *Sqlite) GetUserTeacherById(id uint) (*models.UserTeacher, error) {
-// 	var userTeacher models.UserTeacher
-// 	if err := s.Db.Preload("User").Preload("School").First(&userTeacher, id).Error; err != nil {
-// 		return nil, err
-// 	}
-// 	return &userTeacher, nil
-// }
+func (s *Sqlite) GetUserTeacherById(id uint) (*models.UserTeacher, error) {
+	var userTeacher models.UserTeacher
+	if err := s.Db.Preload("User").Preload("School").First(&userTeacher, id).Error; err != nil {
+		return nil, err
+	}
+	return &userTeacher, nil
+}
+
+func (s *Sqlite) UpdateUserTeacher(tea models.UserTeacher) error {
+	return s.Db.Model(&models.UserTeacher{}).Where("user_id = ?", tea.UserID).Updates(tea).Error
+}
 
 // func (s *Sqlite) GetUserTeachersList() ([]models.UserTeacher, error) {
 // 	var userTeachers []models.UserTeacher
